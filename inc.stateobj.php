@@ -39,7 +39,7 @@ class SoDB{
 	}
 	
     function __toString(){
-        return "[SoDB-rev3@{$this->file}]";
+        return "[SoDB-rev3@{$this->dbfile}]";
     }
     
 	// Create the table where SO data will reside
@@ -149,52 +149,64 @@ class SoDB{
 
 class SimpleStateObj extends StateObj{
     function __construct($name) {
-		$this->db = new SoDB($name.'.sobj');
-		$this->name = $name;
+		$this->__db = new SoDB($name.'.sobj');
+		$this->__name = $name;
 		// Load data from the DB
-		$this->data = $this->db->getAllVars($name);
+		$this->__data = $this->__db->getAllVars($name);
     }
 }
 
 class StateObj {
-    private $data = array();
-	private $db;
-	private $name;
+    public $__data = array();
+    public $__db;
+    protected $__name;
 	
     public function __construct($db, $name) {
-		$this->db = $db;
-		$this->name = $name;
+		$this->__db = $db;
+		$this->__name = $name;
 		// Load data from the DB
-		$this->data = $this->db->getAllVars($name);
+		$this->__data = $this->__db->getAllVars($name);
     }
 
     public function __set($key, $val) {
+        $this->save($key, $val);
+        $this->__data[$key] = $val;
+    }
+    
+    public function save($key){
+        $this->__save($key, $this->__data[$key]);
+    }
+    
+    private function __save($key, $val){
         if(is_array($val)){
             $nest = $this->flatVars($val);
+            //print_r($key);
             foreach($nest as $k=>$v){
-                $this->db->setVar($this->name, $key.'/'.$k, $v);
+                $this->__db->setVar($this->__name, $key.'/'.$k, $v);
+                //print $key.'/'.$k.'=>'.$v;
             }
         }
         else {
-            $this->db->setVar($this->name, $key, $val);
+            //print $key.'=>'.$val;
+            $this->__db->setVar($this->__name, $key, $val);
         }
-        $this->data[$key] = $val;
     }
 
-    public function __get($key) {
-        if (array_key_exists($key, $this->data)) {
-            return $this->data[$key];
+    public function &__get($key) {
+        if (array_key_exists($key, $this->__data)) {
+            return $this->__data[$key];
         }
         return null;
+        print 'wtf';
     }
 
     public function __isset($key) {
-        return isset($this->data[$key]);
+        return isset($this->__data[$key]);
     }
 
     public function delete($path){
         $pa = explode('/', $path);
-        $ref = &$this->data[array_shift($pa)];
+        $ref = &$this->__data[array_shift($pa)];
         foreach($pa as $k)
           $ref = &$ref[$k];
           
@@ -203,25 +215,25 @@ class StateObj {
         if(is_array($key)){
             $nest = $this->flatVars($key);
             foreach($nest as $k=>$v){
-                $this->db->delVar($this->name, $path.'/'.$k);
+                $this->__db->delVar($this->__name, $path.'/'.$k);
             }
         }
         else{
-            $this->db->delVar($this->name, $path);
+            $this->__db->delVar($this->__name, $path);
             unset($key);
         }
     }
 
     public function __unset($key) {
-        if(is_array($this->data[$key])){
-            $nest = $this->flatVars($this->data[$key]);
+        if(is_array($this->__data[$key])){
+            $nest = $this->flatVars($this->__data[$key]);
             foreach($nest as $k=>$v){
-                $this->db->delVar($this->name, $k);
+                $this->__db->delVar($this->__name, $k);
             }
         }
         else
-            $this->db->delVar($this->name, $key);
-        unset($this->data[$key]);
+            $this->__db->delVar($this->__name, $key);
+        unset($this->__data[$key]);
     }
     
 	function listVars(){
@@ -230,7 +242,7 @@ class StateObj {
 	}
 
     public function reload(){
-        $this->data = $this->db->getAllVars($this->name);
+        $this->__data = $this->__db->getAllVars($this->__name);
     }
 
 	// Used by flatVars to iterate through arrays
@@ -247,7 +259,7 @@ class StateObj {
 
 	// Function for making a "array-nest" into a flat array with "paths"
 	private function flatVars($array){
-		$ret = array();
+        $ret = array();
         foreach($array as $key => $val) {
             $key = (string)$key;
 			if(is_object($val)) continue; // Skip objects for now, may add support for objects later
@@ -268,24 +280,24 @@ class StateObj {
     
 	// Flatten data and save to db
 	function saveData(){
-        return 0; // Not needed anymore
-        if(!$this->db) die();
+        if(!$this->__db) die();
 		foreach($this->flatVars($this) as $key => $val)
-			if(!$this->db->setVar($this->__name,$key,$val))
-				print $this->db->lastErrorMsg();	
+			if(!$this->__db->setVar($this->__name,$key,$val))
+				print $this->__db->lastErrorMsg();	
 	}
 
 	// Save the data on script end
     function __destruct() {
-		$this->saveData();
+		//$this->saveData();
+		// Not needed anymore
     }
    
 }
 
-function rimplode($glue, $pieces){
-  foreach($pieces as $piece)
-     $r[]=is_array($piece)?rimplode($glue,$piece):$piece;
-  return implode($glue, $r);
-} 
+function so_add(&$arr, $val){
+    $tmp = $arr;
+    array_push($tmp, $val);
+    $arr = $tmp;
+}
 
 ?>

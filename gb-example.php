@@ -1,14 +1,19 @@
 <?php
  include_once('inc.stateobj.php');
  
- $db = new SoDB('so_gb.db');
- $gb = new StateObj($db, 'gb_data');
+ $db = new SoDB('gb-example.sobj');
+ $gb = new StateObj($db, 'gb-example'); 
+
+ //!isset($gb->data)?$gb->data = array(0 => array('name' => 'test', 'mess' => 'msg')):0;
+ //$gb->dataz[0] = 'lala';
  
- if(!isset($gb->data)) $gb->data = array(); // Create structure if first time run
  
- if(@$_GET['name']){
+ if($_GET['name']){
 	 $gb->data[] = array('name' => $_GET['name'], 'mess' => $_GET['mess']);
+	 $gb->save('data');
  }
+ 
+
 ?>
 <h2>new row:</h2>
 <form>
@@ -19,7 +24,9 @@
 <hr />
 <h2>rows from database:</h2>
 <?php
- foreach($gb->data as $row){
+ print '<br/>';
+ $revdata = array_reverse($gb->data);
+ foreach($revdata as $row){
 ?>
 <b><?=$row['name']?></b>: <?=$row['mess']?><br/>
 <?php } ?>
